@@ -59,7 +59,9 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04 (ubuntu-latest) no longer publishes the big-endian MIPS
+    # cross compiler; keep this job on 24.04 while MIPSBE builds need it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 240
     # never build/release the same version twice at once
     concurrency:
