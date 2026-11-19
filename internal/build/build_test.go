@@ -92,6 +92,27 @@ func TestArchExt(t *testing.T) {
 	}
 }
 
+func TestSourceArtifact(t *testing.T) {
+	tests := []struct {
+		arch  string
+		name  string
+		isISO bool
+	}{
+		{arch: "x86", name: "mikrotik-7.17.iso", isISO: true},
+		{arch: "arm64", name: "mikrotik-7.17-arm64.iso", isISO: true},
+		{arch: "mipsbe", name: "routeros-7.17-mipsbe.npk", isISO: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.arch, func(t *testing.T) {
+			name, isISO := sourceArtifact("7.17", tt.arch)
+			if name != tt.name || isISO != tt.isISO {
+				t.Fatalf("sourceArtifact(%q, %q) = (%q, %t), want (%q, %t)",
+					"7.17", tt.arch, name, isISO, tt.name, tt.isISO)
+			}
+		})
+	}
+}
+
 func TestRepoRoot(t *testing.T) {
 	root, err := RepoRoot()
 	if err != nil {

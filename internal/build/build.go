@@ -354,6 +354,15 @@ func archExt(arch string) string {
 	return "-" + arch
 }
 
+// sourceArtifact returns the upstream archive used to seed an architecture's
+// build. MikroTik publishes the MIPSBE main package as an NPK, not an ISO.
+func sourceArtifact(version, arch string) (name string, isISO bool) {
+	if arch == "mipsbe" {
+		return fmt.Sprintf("routeros-%s%s.npk", version, archExt(arch)), false
+	}
+	return fmt.Sprintf("mikrotik-%s%s.iso", version, archExt(arch)), true
+}
+
 func (c *Config) patchArch(arch string) error {
 	ext := archExt(arch)
 	buildDir := filepath.Join(c.BuildRoot, c.Version+ext)
@@ -390,15 +399,20 @@ func (c *Config) patchArch(arch string) error {
 	}
 	c.logf("PACKAGES: %s\n", strings.Join(packages, " "))
 
-	c.logf("==> [2/7] get mikrotik-%s%s.iso\n", c.Version, ext)
-	isoPath := filepath.Join(buildDir, fmt.Sprintf("mikrotik-%s%s.iso", c.Version, ext))
-	if err := download("https://download.mikrotik.com/routeros/"+c.Version+"/"+filepath.Base(isoPath), isoPath); err != nil {
+	sourceName, isISO := sourceArtifact(c.Version, arch)
+	sourcePath := filepath.Join(buildDir, sourceName)
+	c.logf("==> [2/7] get %s\n", sourceName)
+	if err := download("https://download.mikrotik.com/routeros/"+c.Version+"/"+sourceName, sourcePath); err != nil {
 		return err
 	}
 
-	c.logln("==> [3/7] unpack ISO")
-	if err := c.unpackISO(isoPath, buildDir, c.Version, ext); err != nil {
-		return err
+	if isISO {
+		c.logln("==> [3/7] unpack ISO")
+		if err := c.unpackISO(sourcePath, buildDir, c.Version, ext); err != nil {
+			return err
+		}
+	} else {
+		c.logln("==> [3/7] use main NPK")
 	}
 
 	c.logln("==> [4/7] check and download missing packages")
