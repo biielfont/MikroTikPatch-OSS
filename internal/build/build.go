@@ -121,7 +121,7 @@ func Run(opts Options) error {
 		return fmt.Errorf("--version is required (e.g. --version 7.24.4)")
 	}
 	if len(opts.Archs) == 0 {
-		opts.Archs = []string{"x86", "arm64"}
+		opts.Archs = []string{"x86", "arm64", "mipsbe"}
 	}
 	if opts.KeysFile == "" {
 		opts.KeysFile = "keys.env"

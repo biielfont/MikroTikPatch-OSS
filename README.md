@@ -28,11 +28,12 @@ Requirements:
 * For the keygen: only the toolchain of each architecture you build.
   `x86` needs a host `gcc` with 32-bit support; `arm64` needs an aarch64
   cross compiler (`gcc-aarch64-linux-gnu` on Debian/Ubuntu, the
-  `aarch64-linux-gnu-gcc` package on Arch). The musl toolchains are built on
-  demand by `tools/musl_i386.sh` and `tools/musl_aarch64.sh`; an
-  `aarch64-linux-musl-gcc` already in `PATH` is used as-is. The pipeline
-  calls `keygen/build.sh [x86] [arm64] [host]` for the requested
-  architectures only.
+  `aarch64-linux-gnu-gcc` package on Arch); `mipsbe` needs a big-endian MIPS
+  cross compiler (`gcc-mips-linux-gnu` on Debian/Ubuntu). The musl toolchains
+  are built on demand by `tools/musl_i386.sh`, `tools/musl_aarch64.sh` and
+  `tools/musl_mipsbe.sh`; cross-musl compilers already in `PATH` are used as-is.
+  The pipeline calls `keygen/build.sh [x86] [arm64] [mipsbe] [host]` for the
+  requested architectures only.
 * `qemu-system-x86_64` / `qemu-system-aarch64` and UEFI firmware (OVMF /
   QEMU_EFI) only for `--boot-test`.
 
@@ -42,7 +43,7 @@ Requirements:
 # Generate a key set (once).
 ./mikrotikpatch genkeys --out keys.env
 
-# Patch a version and build the CHR images for both architectures.
+# Patch a version for x86, arm64 and mipsbe (CHR images are built for x86/arm64).
 ./mikrotikpatch patch-v7 --version 7.24.4 --archs all --boot-test --legacy-bios
 ```
 
@@ -50,7 +51,7 @@ Requirements:
 
 ```
 --version <x.y.z>          RouterOS version (required)
---archs x86,arm64          comma list, or "all" (default all)
+--archs x86,arm64,mipsbe   comma list, or "all" (default all)
 --buildtime <seconds>      custom build time (default: original)
 --keys-file <path>         key material file (default keys.env)
 --build-dir <path>         scratch directory (default /tmp/build)
@@ -58,7 +59,7 @@ Requirements:
 --boot-test                boot each image in qemu and check the licence
 --boot-test-timeout <s>    per-image timeout, seconds or duration (default 600)
 --legacy-bios              also build the x86 legacy-BIOS image
---skip-keygen              do not rebuild keygen_x86/keygen_arm64
+--skip-keygen              do not rebuild keygens
 --jobs <n>                 parallel CPU workers (default min(NumCPU,8))
 ```
 

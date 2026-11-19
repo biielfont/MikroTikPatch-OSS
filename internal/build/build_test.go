@@ -87,6 +87,9 @@ func TestArchExt(t *testing.T) {
 	if archExt("arm64") != "-arm64" {
 		t.Error("arm64 extension must be -arm64")
 	}
+	if archExt("mipsbe") != "-mipsbe" {
+		t.Error("mipsbe extension must be -mipsbe")
+	}
 }
 
 func TestRepoRoot(t *testing.T) {

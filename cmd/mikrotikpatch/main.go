@@ -34,7 +34,7 @@ Usage:
 
 patch-v7 options:
   --version <x.y.z>          RouterOS version (required)
-  --archs x86,arm64         comma list, or "all" (default all)
+  --archs x86,arm64,mipsbe  comma list, or "all" (default all)
   --buildtime <seconds>      custom build time (empty = original)
   --keys-file <path>         env file with the key material (default keys.env)
   --build-dir <path>         scratch directory (default /tmp/build)
@@ -42,7 +42,7 @@ patch-v7 options:
   --boot-test                boot each built image in qemu and check the licence
   --boot-test-timeout <s>    per-image boot test timeout, seconds or duration (600)
   --legacy-bios              also build the x86 legacy-BIOS image
-  --skip-keygen              do not rebuild keygen_x86/keygen_arm64
+  --skip-keygen              do not rebuild keygens
   --jobs <n>                 parallel CPU workers (default min(NumCPU,8))
 `
 
@@ -120,7 +120,7 @@ func cmdPatchV7(args []string) int {
 func parseArchs(input string) ([]string, error) {
 	switch input {
 	case "all", "ALL":
-		return []string{"x86", "arm64"}, nil
+		return []string{"x86", "arm64", "mipsbe"}, nil
 	}
 	var list []string
 	seen := map[string]bool{}
@@ -130,9 +130,9 @@ func parseArchs(input string) ([]string, error) {
 			continue
 		}
 		switch a {
-		case "x86", "arm64":
+		case "x86", "arm64", "mipsbe":
 		default:
-			return nil, fmt.Errorf("unknown architecture %q (supported: x86, arm64)", a)
+			return nil, fmt.Errorf("unknown architecture %q (supported: x86, arm64, mipsbe)", a)
 		}
 		if seen[a] {
 			return nil, fmt.Errorf("duplicate architecture %q", a)

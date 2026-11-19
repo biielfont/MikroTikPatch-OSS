@@ -13,13 +13,14 @@ func TestParseArchs(t *testing.T) {
 		want  []string
 		isErr bool
 	}{
-		{in: "all", want: []string{"x86", "arm64"}},
-		{in: "ALL", want: []string{"x86", "arm64"}},
+		{in: "all", want: []string{"x86", "arm64", "mipsbe"}},
+		{in: "ALL", want: []string{"x86", "arm64", "mipsbe"}},
 		{in: "x86", want: []string{"x86"}},
 		{in: "arm64", want: []string{"arm64"}},
-		{in: "x86,arm64", want: []string{"x86", "arm64"}},
+		{in: "mipsbe", want: []string{"mipsbe"}},
+		{in: "x86,arm64,mipsbe", want: []string{"x86", "arm64", "mipsbe"}},
 		{in: "arm64,x86", want: []string{"arm64", "x86"}},
-		{in: " x86 , arm64 ", want: []string{"x86", "arm64"}},
+		{in: " x86 , arm64 , mipsbe ", want: []string{"x86", "arm64", "mipsbe"}},
 		{in: "", isErr: true},
 		{in: ",", isErr: true},
 		// Unknown names are rejected up front instead of failing later in

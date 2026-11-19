@@ -78,6 +78,8 @@ jobs:
             build-essential liblzma-dev gcc-multilib libc6-dev-i386 wget
           sudo apt-get install -y --no-install-recommends \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mips-linux-gnu binutils-mips-linux-gnu
 
       - name: Install QEMU and UEFI firmware
         if: ${{ inputs.boot_test }}
@@ -92,9 +94,8 @@ jobs:
           # the module has no dependencies, nothing worth caching
           cache: false
 
-      # The i386 (tools/musl_i386.sh) and aarch64 (tools/musl_aarch64.sh) musl
-      # toolchains are built from source on first use; cache them so repeated
-      # builds skip that step.
+      # The i386, aarch64 and MIPS musl toolchains are built from source on
+      # first use; cache them so repeated builds skip that step.
       - name: Cache the musl toolchains
         uses: actions/cache@v4
         with:
@@ -102,7 +103,8 @@ jobs:
             .toolchain/cache
             .toolchain/i386-musl
             .toolchain/aarch64-musl
-          key: musl-toolchains-${{ runner.os }}-${{ hashFiles('tools/musl_i386.sh', 'tools/musl_aarch64.sh') }}
+            .toolchain/mipsbe-musl
+          key: musl-toolchains-${{ runner.os }}-${{ hashFiles('tools/musl_i386.sh', 'tools/musl_aarch64.sh', 'tools/musl_mipsbe.sh') }}
 
       # The MikroTik CDN is slow from the runners.  Keep the ISOs (which the
       # pipeline reuses as the source of every package) across runs; a retry
