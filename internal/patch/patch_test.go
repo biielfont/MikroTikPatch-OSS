@@ -59,10 +59,16 @@ func TestPatchLicenceBinariesLoader(t *testing.T) {
 
 func TestKeygenName(t *testing.T) {
 	for arch, want := range map[string]string{
-		"":       "x86",
-		"x86":    "x86",
-		"arm64":  "arm64",
-		"mipsbe": "mipsbe",
+		"":        "x86",
+		"x86":     "x86",
+		"arm64":   "arm64",
+		"mipsbe":  "mipsbe",
+		"arm":     "arm",
+		"mmips":   "mipsle",
+		"smips":   "mipsle",
+		"ppc":     "ppc",
+		"tile":    "",
+		"unknown": "",
 	} {
 		if got := KeygenName(arch); got != want {
 			t.Errorf("KeygenName(%q) = %q, want %q", arch, got, want)

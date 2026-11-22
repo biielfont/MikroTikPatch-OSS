@@ -76,7 +76,7 @@ arm64,container,1187985
 ```
 
 `arch` values are the RouterOS architecture names (`x86`, `arm`, `arm64`,
-`mipsbe`, `mmips`, `ppc`, `tile`); the router filters rows by its own arch,
+`mipsbe`, `mmips`, `smips`, `ppc`, `tile`); the router filters rows by its own arch,
 uses `size` for the disk-space check / progress display and `name` to build
 download filenames.  The main `routeros` package is not listed — it is always
 downloaded separately.  This endpoint is **v7-only**: the 6.49.22 `sys2`

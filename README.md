@@ -26,14 +26,13 @@ Requirements:
 * Go 1.24+ with cgo enabled and a C compiler.
 * `liblzma` headers and library (Arch: `xz`; Debian/Ubuntu: `liblzma-dev`).
 * For the keygen: only the toolchain of each architecture you build.
-  `x86` needs a host `gcc` with 32-bit support; `arm64` needs an aarch64
-  cross compiler (`gcc-aarch64-linux-gnu` on Debian/Ubuntu, the
-  `aarch64-linux-gnu-gcc` package on Arch); `mipsbe` needs a big-endian MIPS
-  cross compiler (`gcc-mips-linux-gnu` on Debian/Ubuntu). The musl toolchains
-  are built on demand by `tools/musl_i386.sh`, `tools/musl_aarch64.sh` and
-  `tools/musl_mipsbe.sh`; cross-musl compilers already in `PATH` are used as-is.
-  The pipeline calls `keygen/build.sh [x86] [arm64] [mipsbe] [host]` for the
-  requested architectures only.
+  `x86` needs a host `gcc` with 32-bit support; `arm64` and `mipsbe` use the
+  corresponding cross compilers and build musl toolchains on demand.
+  `arm`, `mmips`/`smips` and `ppc` use static cross compilers
+  (`gcc-arm-linux-gnueabi`, `gcc-mipsel-linux-gnu` and
+  `gcc-powerpc-linux-gnu` on Ubuntu/Debian). The pipeline builds the matching
+  native keygen for each selected architecture. TileGX (`tile`) is not built
+  because Ubuntu 24.04 does not provide its cross compiler.
 * `qemu-system-x86_64` / `qemu-system-aarch64` and UEFI firmware (OVMF /
   QEMU_EFI) only for `--boot-test`.
 
@@ -43,7 +42,7 @@ Requirements:
 # Generate a key set (once).
 ./mikrotikpatch genkeys --out keys.env
 
-# Patch a version for x86, arm64 and mipsbe (CHR images are built for x86/arm64).
+# Patch every supported architecture (CHR images are available for x86/arm64).
 ./mikrotikpatch patch-v7 --version 7.24.4 --archs all --boot-test --legacy-bios
 ```
 
@@ -51,7 +50,8 @@ Requirements:
 
 ```
 --version <x.y.z>          RouterOS version (required)
---archs x86,arm64,mipsbe   comma list, or "all" (default all)
+--archs x86,arm64,mipsbe,arm,mmips,smips,ppc
+                             comma list, or "all" (default all; tile excluded)
 --buildtime <seconds>      custom build time (default: original)
 --keys-file <path>         key material file (default keys.env)
 --build-dir <path>         scratch directory (default /tmp/build)

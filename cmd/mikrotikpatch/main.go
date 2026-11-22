@@ -34,7 +34,7 @@ Usage:
 
 patch-v7 options:
   --version <x.y.z>          RouterOS version (required)
-  --archs x86,arm64,mipsbe  comma list, or "all" (default all)
+  --archs x86,arm64,mipsbe,arm,mmips,smips,ppc  comma list, or "all" (default all)
   --buildtime <seconds>      custom build time (empty = original)
   --keys-file <path>         env file with the key material (default keys.env)
   --build-dir <path>         scratch directory (default /tmp/build)
@@ -120,7 +120,7 @@ func cmdPatchV7(args []string) int {
 func parseArchs(input string) ([]string, error) {
 	switch input {
 	case "all", "ALL":
-		return []string{"x86", "arm64", "mipsbe"}, nil
+		return []string{"x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc"}, nil
 	}
 	var list []string
 	seen := map[string]bool{}
@@ -130,9 +130,9 @@ func parseArchs(input string) ([]string, error) {
 			continue
 		}
 		switch a {
-		case "x86", "arm64", "mipsbe":
+		case "x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc":
 		default:
-			return nil, fmt.Errorf("unknown architecture %q (supported: x86, arm64, mipsbe)", a)
+			return nil, fmt.Errorf("unknown architecture %q (supported: x86, arm64, mipsbe, arm, mmips, smips, ppc)", a)
 		}
 		if seen[a] {
 			return nil, fmt.Errorf("duplicate architecture %q", a)

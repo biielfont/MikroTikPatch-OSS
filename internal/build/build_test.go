@@ -81,14 +81,13 @@ func TestZipDir(t *testing.T) {
 }
 
 func TestArchExt(t *testing.T) {
-	if archExt("x86") != "" {
-		t.Error("x86 extension must be empty")
-	}
-	if archExt("arm64") != "-arm64" {
-		t.Error("arm64 extension must be -arm64")
-	}
-	if archExt("mipsbe") != "-mipsbe" {
-		t.Error("mipsbe extension must be -mipsbe")
+	for arch, want := range map[string]string{
+		"x86": "", "arm64": "-arm64", "mipsbe": "-mipsbe",
+		"arm": "-arm", "mmips": "-mmips", "smips": "-smips", "ppc": "-ppc",
+	} {
+		if got := archExt(arch); got != want {
+			t.Errorf("archExt(%q) = %q, want %q", arch, got, want)
+		}
 	}
 }
 
@@ -101,6 +100,10 @@ func TestSourceArtifact(t *testing.T) {
 		{arch: "x86", name: "mikrotik-7.17.iso", isISO: true},
 		{arch: "arm64", name: "mikrotik-7.17-arm64.iso", isISO: true},
 		{arch: "mipsbe", name: "routeros-7.17-mipsbe.npk", isISO: false},
+		{arch: "arm", name: "routeros-7.17-arm.npk", isISO: false},
+		{arch: "mmips", name: "routeros-7.17-mmips.npk", isISO: false},
+		{arch: "smips", name: "routeros-7.17-smips.npk", isISO: false},
+		{arch: "ppc", name: "routeros-7.17-ppc.npk", isISO: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.arch, func(t *testing.T) {

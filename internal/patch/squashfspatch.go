@@ -54,10 +54,18 @@ func KeygenName(arch string) string {
 	switch arch {
 	case "x86", "i386", "x8664", "amd64":
 		return "x86"
+	case "arm64":
+		return "arm64"
 	case "mipsbe":
 		return "mipsbe"
+	case "arm":
+		return "arm"
+	case "mmips", "smips":
+		return "mipsle"
+	case "ppc":
+		return "ppc"
 	default:
-		return "arm64"
+		return ""
 	}
 }
 

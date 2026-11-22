@@ -82,6 +82,8 @@ jobs:
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install -y --no-install-recommends \
             gcc-mips-linux-gnu binutils-mips-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-linux-gnueabi gcc-mipsel-linux-gnu gcc-powerpc-linux-gnu
 
       - name: Install QEMU and UEFI firmware
         if: ${{ inputs.boot_test }}
@@ -170,7 +172,7 @@ jobs:
             echo
             echo '```'
             (cd "publish/$VERSION" && sha256sum \
-              routeros-*.npk all_packages-*.zip chr-*.img.zip)
+              *.npk all_packages-*.zip chr-*.img.zip)
             echo '```'
             echo
             echo 'The block can be saved and checked with: sha256sum -c <file>'
@@ -184,6 +186,8 @@ jobs:
           set -euo pipefail
           {
             echo "Patched RouterOS $VERSION build."
+            echo "- Architectures: x86, arm64, mipsbe, arm, mmips, smips, ppc (TileGX is not included)."
+            echo "- CHR disk images: x86 and arm64."
             echo "- Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo ""
             cat "publish/$VERSION/CHANGELOG"
@@ -196,7 +200,7 @@ jobs:
           name: routeros-${{ inputs.version }}
           path: |
             publish/${{ inputs.version }}/CHANGELOG
-            publish/${{ inputs.version }}/routeros-*.npk
+            publish/${{ inputs.version }}/*.npk
             publish/${{ inputs.version }}/all_packages-*.zip
             publish/${{ inputs.version }}/chr-*.img.zip
           if-no-files-found: error
@@ -213,7 +217,7 @@ jobs:
           set -euo pipefail
           tag="v$VERSION"
           dir="publish/$VERSION"
-          assets=("$dir"/routeros-*.npk "$dir"/all_packages-*.zip "$dir"/chr-*.img.zip)
+          assets=("$dir"/*.npk "$dir"/all_packages-*.zip "$dir"/chr-*.img.zip)
           extra=()
           case "$VERSION" in *beta*|*rc*) extra+=(--prerelease) ;; esac
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

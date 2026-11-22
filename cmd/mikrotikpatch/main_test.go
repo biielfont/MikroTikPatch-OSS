@@ -13,12 +13,16 @@ func TestParseArchs(t *testing.T) {
 		want  []string
 		isErr bool
 	}{
-		{in: "all", want: []string{"x86", "arm64", "mipsbe"}},
-		{in: "ALL", want: []string{"x86", "arm64", "mipsbe"}},
+		{in: "all", want: []string{"x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc"}},
+		{in: "ALL", want: []string{"x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc"}},
 		{in: "x86", want: []string{"x86"}},
 		{in: "arm64", want: []string{"arm64"}},
 		{in: "mipsbe", want: []string{"mipsbe"}},
-		{in: "x86,arm64,mipsbe", want: []string{"x86", "arm64", "mipsbe"}},
+		{in: "arm", want: []string{"arm"}},
+		{in: "mmips", want: []string{"mmips"}},
+		{in: "smips", want: []string{"smips"}},
+		{in: "ppc", want: []string{"ppc"}},
+		{in: "x86,arm64,mipsbe,arm,mmips,smips,ppc", want: []string{"x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc"}},
 		{in: "arm64,x86", want: []string{"arm64", "x86"}},
 		{in: " x86 , arm64 , mipsbe ", want: []string{"x86", "arm64", "mipsbe"}},
 		{in: "", isErr: true},
@@ -26,6 +30,7 @@ func TestParseArchs(t *testing.T) {
 		// Unknown names are rejected up front instead of failing later in
 		// keygen/build.sh or on a 404 ISO download.
 		{in: "x68", isErr: true},
+		{in: "tile", isErr: true},
 		{in: "x86,i386", isErr: true},
 		// JSON arrays are not supported; they are not architecture names.
 		{in: `["x86"]`, isErr: true},

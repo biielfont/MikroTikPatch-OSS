@@ -121,7 +121,7 @@ func Run(opts Options) error {
 		return fmt.Errorf("--version is required (e.g. --version 7.24.4)")
 	}
 	if len(opts.Archs) == 0 {
-		opts.Archs = []string{"x86", "arm64", "mipsbe"}
+		opts.Archs = []string{"x86", "arm64", "mipsbe", "arm", "mmips", "smips", "ppc"}
 	}
 	if opts.KeysFile == "" {
 		opts.KeysFile = "keys.env"
@@ -355,9 +355,9 @@ func archExt(arch string) string {
 }
 
 // sourceArtifact returns the upstream archive used to seed an architecture's
-// build. MikroTik publishes the MIPSBE main package as an NPK, not an ISO.
+// build. Only x86 and arm64 have ISO downloads; other architectures use NPKs.
 func sourceArtifact(version, arch string) (name string, isISO bool) {
-	if arch == "mipsbe" {
+	if arch != "x86" && arch != "arm64" {
 		return fmt.Sprintf("routeros-%s%s.npk", version, archExt(arch)), false
 	}
 	return fmt.Sprintf("mikrotik-%s%s.iso", version, archExt(arch)), true
