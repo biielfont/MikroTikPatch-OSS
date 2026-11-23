@@ -59,6 +59,36 @@ func TestPatchLicenceBinariesLoader(t *testing.T) {
 
 }
 
+func TestPatchLicenceBinariesKeyMayOnlyExistInKeyman(t *testing.T) {
+	old := bytes.Repeat([]byte{0x41}, 32)
+	newKey := bytes.Repeat([]byte{0x82}, 32)
+	mode := &squashfs.Node{Name: "mode", Type: squashfs.TypeFile, Data: []byte("mode without embedded key")}
+	keyman := &squashfs.Node{Name: "keyman", Type: squashfs.TypeFile, Data: append([]byte("blob"), old...)}
+	dir := &squashfs.Node{
+		Name:     "bin",
+		Type:     squashfs.TypeDir,
+		Children: []*squashfs.Node{mode, keyman},
+	}
+
+	if err := patchLicenceBinaries(dir, []KeyPair{{Old: old, New: newKey}}, "x86", "/nova/bin", nil); err != nil {
+		t.Fatalf("patchLicenceBinaries: %v", err)
+	}
+	if !bytes.Contains(keyman.Data, newKey) || bytes.Contains(keyman.Data, old) {
+		t.Fatal("keyman licence key was not patched")
+	}
+	if !bytes.Equal(mode.Data, []byte("mode without embedded key")) {
+		t.Fatal("mode without an embedded key was changed")
+	}
+
+	unpatched := &squashfs.Node{Name: "bin", Type: squashfs.TypeDir, Children: []*squashfs.Node{
+		{Name: "mode", Type: squashfs.TypeFile, Data: []byte("no key")},
+		{Name: "keyman", Type: squashfs.TypeFile, Data: []byte("no key")},
+	}}
+	if err := patchLicenceBinaries(unpatched, []KeyPair{{Old: old, New: newKey}}, "x86", "/nova/bin", nil); err == nil {
+		t.Fatal("licence binaries without the stock key did not fail")
+	}
+}
+
 func TestKeygenName(t *testing.T) {
 	for arch, want := range map[string]string{
 		"":        "x86",

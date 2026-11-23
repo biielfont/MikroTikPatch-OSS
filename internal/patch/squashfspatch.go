@@ -147,14 +147,15 @@ func childFile(dir *squashfs.Node, name string) *squashfs.Node {
 }
 
 // patchLicenceBinaries replaces the licence public key (and the service hosts)
-// in every binary that verifies licences in one directory: mode, keyman and,
-// when present, mode2 (the stock licence manager the keygen hands over to).
+// in mode, keyman and, when present, mode2. The key must be present in at least
+// one of these binaries; RouterOS builds may omit it from mode.
 //
 // loader is deliberately left untouched: RouterOS validates the loader's
 // embedded key against other state at boot (the recovered reference tool
 // patches mode2 at runtime through a loader stub instead), so re-signing it
 // makes the system supervisor (/nova/bin/sys2) abort and the boot loops.
 func patchLicenceBinaries(dir *squashfs.Node, keys []KeyPair, arch, path string, replacements map[string]string) error {
+	licencePatched := false
 	for _, filename := range []string{"mode", "keyman", "mode2"} {
 		file := childFile(dir, filename)
 		if file == nil {
@@ -165,11 +166,14 @@ func patchLicenceBinaries(dir *squashfs.Node, keys []KeyPair, arch, path string,
 		for i, k := range keys {
 			before := patched
 			patched = ReplaceKeyArch(k.Old, k.New, patched, path+"/"+filename, arch)
-			if i == 0 && bytes.Equal(before, patched) {
-				return fmt.Errorf("%s/%s: licence public key not patched", path, filename)
+			if i == 0 && !bytes.Equal(before, patched) {
+				licencePatched = true
 			}
 		}
 		file.Data = patched
+	}
+	if !licencePatched {
+		return fmt.Errorf("%s: licence public key not patched in mode, keyman, or mode2", path)
 	}
 	return nil
 }
