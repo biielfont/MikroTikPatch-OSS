@@ -55,6 +55,7 @@ func TestPatchLicenceBinariesLoader(t *testing.T) {
 	if err := patchLicenceBinaries(bad, keys, "x86", "/nova/bin", nil); err == nil {
 		t.Fatal("a verifier without the stock key did not fail")
 	}
+
 }
 
 func TestKeygenName(t *testing.T) {
