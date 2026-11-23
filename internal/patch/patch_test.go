@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"testing"
 
 	"mikrotikpatch/internal/lzma"
@@ -146,6 +147,73 @@ func TestReplaceKeySynthetic(t *testing.T) {
 	again := ReplaceKeyArch(old, newKey, got, "test", "x86")
 	if !bytes.Equal(again, got) {
 		t.Fatal("second replacement changed the data")
+	}
+}
+
+func TestReplaceKeyArchMIPSInstructions(t *testing.T) {
+	old := mustHex("8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32")
+	newKey := mustHex("c0ffee00deadbeef0123456789abcdeffedcba98765432100badf00dcafe1234")
+	for _, arch := range []string{"mipsbe", "mmips", "smips"} {
+		var endian binary.ByteOrder = binary.BigEndian
+		if arch == "mmips" {
+			endian = binary.LittleEndian
+		}
+		var data, want []byte
+		for i := 0; i < 32; i += 4 {
+			oldWord := binary.BigEndian.Uint32(old[i : i+4])
+			newWord := binary.BigEndian.Uint32(newKey[i : i+4])
+			rt := 2
+			luiOld := 0x3c000000 | uint32(rt)<<16 | uint32(oldWord>>16)
+			luiNew := 0x3c000000 | uint32(rt)<<16 | uint32(newWord>>16)
+			lowOldOp, lowNewOp := uint32(0x0d), uint32(0x0d)
+			if i == 0 || i == 24 {
+				lowOldOp, lowNewOp = 0x09, 0x09
+			}
+			lowOld := lowOldOp<<26 | uint32(rt)<<21 | uint32(rt)<<16 | uint32(oldWord&0xffff)
+			lowNew := lowNewOp<<26 | uint32(rt)<<21 | uint32(rt)<<16 | uint32(newWord&0xffff)
+			for _, word := range []uint32{luiOld, lowOld} {
+				b := make([]byte, 4)
+				endian.PutUint32(b, word)
+				data = append(data, b...)
+			}
+			for _, word := range []uint32{luiNew, lowNew} {
+				b := make([]byte, 4)
+				endian.PutUint32(b, word)
+				want = append(want, b...)
+			}
+		}
+		got := ReplaceKeyArch(old, newKey, data, "mode", arch)
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s MIPS key instructions not patched", arch)
+		}
+		again := ReplaceKeyArch(old, newKey, got, "mode", arch)
+		if !bytes.Equal(again, got) {
+			t.Errorf("%s MIPS key instructions changed on second pass", arch)
+		}
+	}
+}
+
+func TestReplaceKeyArchMIPSRealBinaries(t *testing.T) {
+	old := mustHex("8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32")
+	newKey := mustHex("c0ffee00deadbeef0123456789abcdeffedcba98765432100badf00dcafe1234")
+	for _, item := range []struct {
+		path, arch string
+	}{
+		{"/tmp/stock-720-smips-keyman", "smips"},
+		{"/tmp/stock-720-mipsbe-keyman", "mipsbe"},
+	} {
+		data, err := os.ReadFile(item.path)
+		if err != nil {
+			t.Skipf("%s unavailable", item.path)
+		}
+		got := ReplaceKeyArch(old, newKey, data, item.path, item.arch)
+		if bytes.Equal(got, data) {
+			t.Errorf("%s MIPS instruction key was not patched", item.arch)
+		}
+		again := ReplaceKeyArch(old, newKey, got, item.path, item.arch)
+		if !bytes.Equal(again, got) {
+			t.Errorf("%s MIPS instruction key changed on second pass", item.arch)
+		}
 	}
 }
 
