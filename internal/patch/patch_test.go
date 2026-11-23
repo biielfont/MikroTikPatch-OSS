@@ -193,12 +193,12 @@ func TestReplaceKeyArchMIPSInstructions(t *testing.T) {
 			oldWord := binary.BigEndian.Uint32(old[i : i+4])
 			newWord := binary.BigEndian.Uint32(newKey[i : i+4])
 			rt := 2
-			luiOld := 0x3c000000 | uint32(rt)<<16 | uint32(oldWord>>16)
-			luiNew := 0x3c000000 | uint32(rt)<<16 | uint32(newWord>>16)
 			lowOldOp, lowNewOp := uint32(0x0d), uint32(0x0d)
 			if i == 0 || i == 24 {
 				lowOldOp, lowNewOp = 0x09, 0x09
 			}
+			luiOld := 0x3c000000 | uint32(rt)<<16 | uint32(mipsHighImmediate(oldWord, lowOldOp))
+			luiNew := 0x3c000000 | uint32(rt)<<16 | uint32(mipsHighImmediate(newWord, lowNewOp))
 			lowOld := lowOldOp<<26 | uint32(rt)<<21 | uint32(rt)<<16 | uint32(oldWord&0xffff)
 			lowNew := lowNewOp<<26 | uint32(rt)<<21 | uint32(rt)<<16 | uint32(newWord&0xffff)
 			for _, word := range []uint32{luiOld, lowOld} {
@@ -220,6 +220,54 @@ func TestReplaceKeyArchMIPSInstructions(t *testing.T) {
 		if !bytes.Equal(again, got) {
 			t.Errorf("%s MIPS key instructions changed on second pass", arch)
 		}
+	}
+}
+
+func TestReplaceKeyArchMMIPSPackedInstructions(t *testing.T) {
+	old := mustHex("8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32")
+	newKey := mustHex("c0ffee00deadbeef0123456789abcdeffedcba98765432100badf00dcafe1234")
+	oldPacked, newPacked := packedWords(old), packedWords(newKey)
+	addiu := map[int]bool{0: true, 3: true, 7: true, 8: true}
+	var data, want []byte
+	for i := range oldPacked {
+		oldWord := binary.LittleEndian.Uint32(oldPacked[i])
+		newWord := binary.LittleEndian.Uint32(newPacked[i])
+		op := uint32(0x0d)
+		if addiu[i] {
+			op = 0x09
+		}
+		oldInstructions := []uint32{
+			0x3c000000 | uint32(2)<<16 | uint32(mipsHighImmediate(oldWord, op)),
+			op<<26 | uint32(2)<<21 | uint32(2)<<16 | oldWord&0xffff,
+		}
+		newInstructions := []uint32{
+			0x3c000000 | uint32(2)<<16 | uint32(mipsHighImmediate(newWord, op)),
+			op<<26 | uint32(2)<<21 | uint32(2)<<16 | newWord&0xffff,
+		}
+		for _, word := range oldInstructions {
+			instruction := make([]byte, 4)
+			binary.LittleEndian.PutUint32(instruction, word)
+			data = append(data, instruction...)
+		}
+		for _, word := range newInstructions {
+			instruction := make([]byte, 4)
+			binary.LittleEndian.PutUint32(instruction, word)
+			want = append(want, instruction...)
+		}
+	}
+
+	got := ReplaceKeyArch(old, newKey, data, "mode", "mmips")
+	if !bytes.Equal(got, want) {
+		t.Fatalf("mmips packed key instructions not patched:\n got %x\nwant %x", got, want)
+	}
+	if again := ReplaceKeyArch(old, newKey, got, "mode", "mmips"); !bytes.Equal(again, got) {
+		t.Fatal("second mmips packed-key replacement changed the data")
+	}
+
+	incomplete := append([]byte(nil), data[:len(data)-8]...)
+	got = ReplaceKeyArch(old, newKey, incomplete, "mode", "mmips")
+	if !bytes.Equal(got, incomplete) {
+		t.Fatal("incomplete mmips packed key was partially patched")
 	}
 }
 

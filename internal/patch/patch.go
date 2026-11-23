@@ -617,19 +617,71 @@ func replaceMIPSKey(old, new []byte, data []byte, name, arch string) []byte {
 	used := make(map[int]bool)
 	for i := 0; i < 32; i += 4 {
 		oldWord := binary.BigEndian.Uint32(old[i : i+4])
-		hi, lo := uint16(oldWord>>16), uint16(oldWord)
+		lo := uint16(oldWord)
 		found := false
 		for off := 0; off+8 <= len(data); off += 4 {
 			if used[off] {
 				continue
 			}
 			rt, luiHi, ok := mipsLUI(data, off, endian)
-			if !ok || luiHi != hi {
+			if !ok {
 				continue
 			}
 			for low := off + 4; low <= off+32 && low+4 <= len(data); low += 4 {
 				lowOp, matches := mipsLowMatches(data, low, rt, lo, endian)
-				if used[low] || !matches {
+				if used[low] || !matches || luiHi != mipsHighImmediate(oldWord, lowOp) {
+					continue
+				}
+				pairs = append(pairs, mipsPair{luiOff: off, lowOff: low, rt: rt, lowOp: lowOp})
+				used[off], used[low] = true, true
+				found = true
+				break
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return replaceMIPSPackedKey(old, new, data, name, endian)
+		}
+	}
+
+	out := append([]byte(nil), data...)
+	for i, pair := range pairs {
+		newWord := binary.BigEndian.Uint32(new[i*4 : i*4+4])
+		hi, lo := mipsHighImmediate(newWord, pair.lowOp), uint16(newWord)
+		putMIPSWord(out, pair.luiOff, 0x3c000000|uint32(pair.rt)<<16|uint32(hi), endian)
+		putMIPSWord(out, pair.lowOff, pair.lowOp<<26|uint32(pair.rt)<<21|uint32(pair.rt)<<16|uint32(lo), endian)
+	}
+	Logf("%s public key patched %X...\n", name, old[:4])
+	return out
+}
+
+func replaceMIPSPackedKey(old, new, data []byte, name string, endian binary.ByteOrder) []byte {
+	oldPacked, newPacked := packedWords(old), packedWords(new)
+	type mipsPair struct {
+		luiOff int
+		lowOff int
+		rt     int
+		lowOp  uint32
+	}
+	pairs := make([]mipsPair, 0, len(oldPacked))
+	used := make(map[int]bool)
+	for i := range oldPacked {
+		oldWord := binary.LittleEndian.Uint32(oldPacked[i])
+		lo := uint16(oldWord)
+		found := false
+		for off := 0; off+8 <= len(data); off += 4 {
+			if used[off] {
+				continue
+			}
+			rt, luiHi, ok := mipsLUI(data, off, endian)
+			if !ok {
+				continue
+			}
+			for low := off + 4; low <= off+32 && low+4 <= len(data); low += 4 {
+				lowOp, matches := mipsLowMatches(data, low, rt, lo, endian)
+				if used[low] || !matches || luiHi != mipsHighImmediate(oldWord, lowOp) {
 					continue
 				}
 				pairs = append(pairs, mipsPair{luiOff: off, lowOff: low, rt: rt, lowOp: lowOp})
@@ -648,13 +700,21 @@ func replaceMIPSKey(old, new []byte, data []byte, name, arch string) []byte {
 
 	out := append([]byte(nil), data...)
 	for i, pair := range pairs {
-		newWord := binary.BigEndian.Uint32(new[i*4 : i*4+4])
-		hi, lo := uint16(newWord>>16), uint16(newWord)
+		newWord := binary.LittleEndian.Uint32(newPacked[i])
+		hi, lo := mipsHighImmediate(newWord, pair.lowOp), uint16(newWord)
 		putMIPSWord(out, pair.luiOff, 0x3c000000|uint32(pair.rt)<<16|uint32(hi), endian)
 		putMIPSWord(out, pair.lowOff, pair.lowOp<<26|uint32(pair.rt)<<21|uint32(pair.rt)<<16|uint32(lo), endian)
 	}
-	Logf("%s public key patched %X...\n", name, old[:4])
+	Logf("%s packed public key patched %X...\n", name, old[:4])
 	return out
+}
+
+func mipsHighImmediate(word, lowOp uint32) uint16 {
+	hi := uint16(word >> 16)
+	if lowOp == 0x09 && word&0x8000 != 0 {
+		hi++
+	}
+	return hi
 }
 
 // replacePPCKey patches public-key words materialised as PowerPC lis/ori pairs.
