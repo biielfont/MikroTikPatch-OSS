@@ -193,6 +193,44 @@ func TestReplaceKeyArchMIPSInstructions(t *testing.T) {
 	}
 }
 
+func TestReplaceKeyArchPPCInstructions(t *testing.T) {
+	old := mustHex("8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32")
+	newKey := mustHex("c0ffee00deadbeef0123456789abcdeffedcba98765432100badf00dcafe1234")
+	var data, want []byte
+	for i := 0; i < 32; i += 4 {
+		oldWord := binary.BigEndian.Uint32(old[i : i+4])
+		newWord := binary.BigEndian.Uint32(newKey[i : i+4])
+		lisOld := 0x3c000000 | uint32(9)<<21 | oldWord>>16
+		lisNew := 0x3c000000 | uint32(9)<<21 | newWord>>16
+		oriOld := 0x60000000 | uint32(9)<<21 | uint32(9)<<16 | oldWord&0xffff
+		oriNew := 0x60000000 | uint32(9)<<21 | uint32(9)<<16 | newWord&0xffff
+		for _, word := range []uint32{lisOld, 0x39080010, oriOld, 0x91210000} {
+			instruction := make([]byte, 4)
+			binary.BigEndian.PutUint32(instruction, word)
+			data = append(data, instruction...)
+		}
+		for _, word := range []uint32{lisNew, 0x39080010, oriNew, 0x91210000} {
+			instruction := make([]byte, 4)
+			binary.BigEndian.PutUint32(instruction, word)
+			want = append(want, instruction...)
+		}
+	}
+
+	got := ReplaceKeyArch(old, newKey, data, "mode", "ppc")
+	if !bytes.Equal(got, want) {
+		t.Fatalf("PPC key instructions not patched:\n got %x\nwant %x", got, want)
+	}
+	if again := ReplaceKeyArch(old, newKey, got, "mode", "ppc"); !bytes.Equal(again, got) {
+		t.Fatal("second PPC replacement changed the data")
+	}
+
+	incomplete := append([]byte(nil), data[:len(data)-16]...)
+	got = ReplaceKeyArch(old, newKey, incomplete, "mode", "ppc")
+	if !bytes.Equal(got, incomplete) {
+		t.Fatal("incomplete PPC key was partially patched")
+	}
+}
+
 func TestReplaceKeyArchMIPSRealBinaries(t *testing.T) {
 	old := mustHex("8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32")
 	newKey := mustHex("c0ffee00deadbeef0123456789abcdeffedcba98765432100badf00dcafe1234")

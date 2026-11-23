@@ -572,6 +572,9 @@ func ReplaceKeyArch(old, new []byte, data []byte, name, archEnv string) []byte {
 	if arch == "mipsbe" || arch == "mmips" || arch == "smips" {
 		data = replaceMIPSKey(old, new, data, name, arch)
 	}
+	if arch == "ppc" {
+		data = replacePPCKey(old, new, data, name)
+	}
 	if arch != "arm" && arch != "arm64" {
 		// x86 code may load the key words in a compiler-scheduled order.
 		data = ReplaceChunksUnordered(oldChunks, newChunks, data, name)
@@ -652,6 +655,79 @@ func replaceMIPSKey(old, new []byte, data []byte, name, arch string) []byte {
 	}
 	Logf("%s public key patched %X...\n", name, old[:4])
 	return out
+}
+
+// replacePPCKey patches public-key words materialised as PowerPC lis/ori pairs.
+func replacePPCKey(old, new []byte, data []byte, name string) []byte {
+	if len(old) != 32 || len(new) != 32 {
+		return data
+	}
+
+	type ppcPair struct {
+		lisOff int
+		oriOff int
+	}
+	pairs := make([]ppcPair, 0, 8)
+	used := make(map[int]bool)
+	for i := 0; i < 32; i += 4 {
+		oldWord := binary.BigEndian.Uint32(old[i : i+4])
+		hi, lo := uint16(oldWord>>16), uint16(oldWord)
+		found := false
+		for off := 0; off+8 <= len(data); off += 4 {
+			rt, lisHi, ok := ppcLIS(data, off)
+			if used[off] || !ok || lisHi != hi {
+				continue
+			}
+			for ori := off + 4; ori <= off+32 && ori+4 <= len(data); ori += 4 {
+				if used[ori] || !ppcORIMatches(data, ori, rt, lo) {
+					continue
+				}
+				pairs = append(pairs, ppcPair{lisOff: off, oriOff: ori})
+				used[off], used[ori] = true, true
+				found = true
+				break
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return data
+		}
+	}
+
+	out := append([]byte(nil), data...)
+	for i, pair := range pairs {
+		newWord := binary.BigEndian.Uint32(new[i*4 : i*4+4])
+		lis := binary.BigEndian.Uint32(out[pair.lisOff : pair.lisOff+4])
+		ori := binary.BigEndian.Uint32(out[pair.oriOff : pair.oriOff+4])
+		binary.BigEndian.PutUint32(out[pair.lisOff:pair.lisOff+4], lis&0xffff0000|newWord>>16)
+		binary.BigEndian.PutUint32(out[pair.oriOff:pair.oriOff+4], ori&0xffff0000|newWord&0xffff)
+	}
+	Logf("%s public key patched %X...\n", name, old[:4])
+	return out
+}
+
+func ppcLIS(data []byte, off int) (rt int, imm uint16, ok bool) {
+	if off < 0 || off+4 > len(data) {
+		return 0, 0, false
+	}
+	word := binary.BigEndian.Uint32(data[off : off+4])
+	if word>>26 != 0x0f || (word>>16)&0x1f != 0 {
+		return 0, 0, false
+	}
+	return int((word >> 21) & 0x1f), uint16(word), true
+}
+
+func ppcORIMatches(data []byte, off, rt int, imm uint16) bool {
+	if off < 0 || off+4 > len(data) {
+		return false
+	}
+	word := binary.BigEndian.Uint32(data[off : off+4])
+	return word>>26 == 0x18 &&
+		int((word>>21)&0x1f) == rt &&
+		int((word>>16)&0x1f) == rt &&
+		uint16(word) == imm
 }
 
 func mipsLUI(data []byte, off int, endian binary.ByteOrder) (rt int, imm uint16, ok bool) {
